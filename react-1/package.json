@@ -11,8 +11,11 @@
     "react-dnd-html5-backend": "^9.3.4",
     "react-dom": "^16.8.6",
     "react-jss": "^10.0.0-alpha.23",
-    "react-motion": "0.5.2",
-    "react-scripts": "3.0.1"
+    "react-spring": "8.0.27",
+    "react-scripts": "3.0.1",
+    "react-use-gesture": "5.2.4",
+    "lodash-es": "4.17.15",
+    "lodash-move": "1.1.1"
   },
   "scripts": {
     "start": "react-scripts start",
