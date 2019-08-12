@@ -1,6 +1,7 @@
 import React, {useImperativeHandle, useRef} from 'react';
 import { DragSource, DropTarget } from 'react-dnd';
 import {createUseStyles} from 'react-jss';
+import { useSpring, animated } from 'react-spring';
 import ItemTypes from './ItemTypes';
 
 const useStyles = createUseStyles({
@@ -9,12 +10,14 @@ const useStyles = createUseStyles({
         padding: 40,
         backgroundColor: '#fff',
         color: '#949494',
-        borderBottom: '1px solid #e4e4e4',
-        "&:last-child": {
-            borderBottom: 'inherit'
-        },
         cursor: 'move'
     },
+	Container: {
+		borderBottom: '1px solid #e4e4e4',
+		"&:last-child": {
+			borderBottom: 'inherit'
+		},
+	},
     Infos: {float: 'left'},
     UserName: {
         fontWeight: 'bold',
@@ -30,17 +33,29 @@ const useStyles = createUseStyles({
     Arrow: {float: 'right'}
 });
 
+const calc = (x, y) => [-(y - window.innerHeight / 2) / 20, (x - window.innerWidth / 2) / 20, 1.1];
+const trans = (x, y, s) => `perspective(200px) scale(${s})`;
+
 const User = React.forwardRef(
     ({user, isDragging, connectDragSource, connectDropTarget}, ref) => {
         const classes = useStyles({user, isDragging, connectDragSource, connectDropTarget});
         const elementRef = useRef(null);
         const opacity = Number(!isDragging);
-        connectDragSource(elementRef);
+	    const [props, set] = useSpring(() => ({ xys: [0, 0, 1], config: { mass: 5, tension: 250, friction: 20 } }));
+	    connectDragSource(elementRef);
         connectDropTarget(elementRef);
         useImperativeHandle(ref, () => ({
             getNode: () => elementRef.current,
         }));
         return (
+	        <animated.div className={classes.Container}
+		        onMouseDown={({ clientX: x, clientY: y }) => set({ xys: calc(x, y) })}
+		        onMouseUp={() => set({ xys: [0, 0, 1] })}
+		        onMouseOver={({ clientX: x, clientY: y }) => set({ xys: calc(x, y) })}
+		        onMouseLeave={() => set({ xys: [0, 0, 1] })}
+		        onDragOver={({ clientX: x, clientY: y }) => set({ xys: calc(x, y) })}
+		        onDragLeave={() => set({ xys: [0, 0, 1] })}
+		        style={{ transform: props.xys.interpolate(trans) }}>
             <li className={classes.User} style={{opacity}} ref={elementRef}>
                 <div className={classes.Infos}>
                     <span className={classes.UserName}>{user.name}</span>
@@ -49,6 +64,7 @@ const User = React.forwardRef(
                 </div>
                 <img src="./arrow.svg" width="42" alt="➡️" className={classes.Arrow}/>
             </li>
+	        </animated.div>
         )
     },
 );
