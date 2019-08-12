@@ -1,0 +1,119 @@
+import React, {useImperativeHandle, useRef} from 'react';
+import { DragSource, DropTarget } from 'react-dnd';
+import {createUseStyles} from 'react-jss';
+import { useSpring, animated } from 'react-spring';
+import ItemTypes from './ItemTypes';
+
+const useStyles = createUseStyles({
+    User: {
+        minHeight: 40,
+        padding: 40,
+        backgroundColor: '#fff',
+        color: '#949494',
+        cursor: 'move'
+    },
+	Container: {
+		borderBottom: '1px solid #e4e4e4',
+		"&:last-child": {
+			borderBottom: 'inherit'
+		},
+	},
+    Infos: {float: 'left'},
+    UserName: {
+        fontWeight: 'bold',
+        fontSize: 20,
+        float: 'left',
+        marginBottom: 5
+    },
+    UserEmail: {
+        textDecoration: 'none',
+        color: '#949494',
+        float: 'left'
+    },
+    Arrow: {float: 'right'}
+});
+
+const calc = (x, y) => [-(y - window.innerHeight / 2) / 20, (x - window.innerWidth / 2) / 20, 1.1];
+const trans = (x, y, s) => `perspective(200px) scale(${s})`;
+
+const User = React.forwardRef(
+    ({user, isDragging, connectDragSource, connectDropTarget}, ref) => {
+        const classes = useStyles({user, isDragging, connectDragSource, connectDropTarget});
+        const elementRef = useRef(null);
+        const opacity = Number(!isDragging);
+	    const [props, set] = useSpring(() => ({ xys: [0, 0, 1], config: { mass: 5, tension: 250, friction: 20 } }));
+	    connectDragSource(elementRef);
+        connectDropTarget(elementRef);
+        useImperativeHandle(ref, () => ({
+            getNode: () => elementRef.current,
+        }));
+        return (
+	        <animated.div className={classes.Container}
+		        onMouseDown={({ clientX: x, clientY: y }) => set({ xys: calc(x, y) })}
+		        onMouseUp={() => set({ xys: [0, 0, 1] })}
+		        onMouseOver={({ clientX: x, clientY: y }) => set({ xys: calc(x, y) })}
+		        onMouseLeave={() => set({ xys: [0, 0, 1] })}
+		        onDragOver={({ clientX: x, clientY: y }) => set({ xys: calc(x, y) })}
+		        onDragLeave={() => set({ xys: [0, 0, 1] })}
+		        style={{ transform: props.xys.interpolate(trans) }}>
+            <li className={classes.User} style={{opacity}} ref={elementRef}>
+                <div className={classes.Infos}>
+                    <span className={classes.UserName}>{user.name}</span>
+                    <br/>
+                    <a href={`mailto:${user.email}`} className={classes.UserEmail}>{user.email}</a>
+                </div>
+                <img src="./arrow.svg" width="42" alt="➡️" className={classes.Arrow}/>
+            </li>
+	        </animated.div>
+        )
+    },
+);
+
+export default DropTarget(
+    ItemTypes.USER,
+    {
+        hover(props, monitor, component) {
+            if (!component) {
+                return null
+            }
+            const node = component.getNode();
+            if (!node) {
+                return null
+            }
+            const dragIndex = monitor.getItem().index;
+            const hoverIndex = props.index;
+            if (dragIndex === hoverIndex) {
+                return
+            }
+            const hoverBoundingRect = node.getBoundingClientRect();
+            const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+            const clientOffset = monitor.getClientOffset();
+            const hoverClientY = clientOffset.y - hoverBoundingRect.top;
+            if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
+                return
+            }
+            if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) {
+                return
+            }
+            props.moveUser(dragIndex, hoverIndex);
+            monitor.getItem().index = hoverIndex;
+        },
+    },
+    connect => ({
+        connectDropTarget: connect.dropTarget(),
+    }),
+)(
+    DragSource(
+        ItemTypes.USER,
+        {
+            beginDrag: props => ({
+                id: props.id,
+                index: props.index,
+            }),
+        },
+        (connect, monitor) => ({
+            connectDragSource: connect.dragSource(),
+            isDragging: monitor.isDragging(),
+        }),
+    )(User),
+);
